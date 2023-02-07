@@ -4,15 +4,14 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import { SignerData } from "@cosmjs/stargate";
 import { createJsonRpcRequest } from "@cosmjs/tendermint-rpc/build/jsonrpc";
 import { SignedBundle, SkipBundleClient } from "@skip-mev/skipjs";
-import { WebClient } from "@slack/web-api";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { OptimalTrade } from "../../arbitrage/arbitrage";
-import { sendSlackMessage } from "../../logging/slacklogger";
 import { BotClients } from "../../node/chainoperator";
 import { SkipResult } from "../../node/skipclients";
 import { BotConfig } from "../core/botConfig";
+import { Logger } from "../../core/logging";
 import { MempoolTrade, processMempool } from "../core/mempool";
 import { Path } from "../core/path";
 import { applyMempoolTradesOnPools, Pool } from "../core/pool";
@@ -24,7 +23,8 @@ import { MempoolLoop } from "./mempoolLoop";
 export class SkipLoop extends MempoolLoop {
 	skipClient: SkipBundleClient;
 	skipSigner: DirectSecp256k1HdWallet;
-	slackLogger: WebClient | undefined;
+	logger: Logger | undefined;
+
 	/**
 	 *
 	 */
@@ -43,10 +43,10 @@ export class SkipLoop extends MempoolLoop {
 		botConfig: BotConfig,
 		skipClient: SkipBundleClient,
 		skipSigner: DirectSecp256k1HdWallet,
-		slackLogger: WebClient | undefined,
+		logger: Logger | undefined,
 	) {
 		super(pools, paths, arbitrage, updateState, messageFunction, botClients, account, botConfig);
-		(this.skipClient = skipClient), (this.skipSigner = skipSigner), (this.slackLogger = slackLogger);
+		(this.skipClient = skipClient), (this.skipSigner = skipSigner), (this.logger = logger);
 	}
 
 	/**
@@ -82,6 +82,7 @@ export class SkipLoop extends MempoolLoop {
 			}
 		}
 	}
+
 	/**
 	 *
 	 */
@@ -141,10 +142,9 @@ export class SkipLoop extends MempoolLoop {
 		// @ts-ignore
         const privKey = (await this.skipSigner.getAccountsWithPrivkeys())[0].privkey;
         const signed = await this.skipClient.signBundle([txArbString, txString], privKey);
-
 		const res = <SkipResult>await this.skipClient.sendBundle(signed, 0, true);
 
-		let slackMessage =
+		let logMessage =
 			"<*wallet:* " +
 			this.account.address +
 			"\n" +
@@ -159,6 +159,7 @@ export class SkipLoop extends MempoolLoop {
 			":\t" +
 			res.result.error +
 			"\n";
+		let logCode = res.result.code;
 
 		console.log(res);
 		if (res.result.result_check_txs != undefined) {
@@ -167,8 +168,8 @@ export class SkipLoop extends MempoolLoop {
 					console.log("CheckTx Error on index: ", idx);
 					console.log(item);
 
-					const slackMessageCheckTx = ">*CheckTx Error* on index: " + idx + ":\t" + String(item.log) + "\n";
-					slackMessage = slackMessage.concat(slackMessageCheckTx);
+					const logMessageCheckTx = ">*CheckTx Error* on index: " + idx + ":\t" + String(item.log) + "\n";
+					logMessage = logMessage.concat(logMessageCheckTx);
 				}
 			});
 		}
@@ -177,14 +178,15 @@ export class SkipLoop extends MempoolLoop {
 				if (item["code"] != "0") {
 					console.log("deliver tx result of index: ", idx);
 					console.log(item);
-					const slackMessageDeliverTx =
+					const logMessageDeliverTx =
 						">*DeliverTx Error* on index: " + idx + "\t" + String(item.log) + "\n";
-					slackMessage = slackMessage.concat(slackMessageDeliverTx);
+					logMessage = logMessage.concat(logMessageDeliverTx);
 				}
 			});
 		}
-		console.log(slackMessage);
-		await sendSlackMessage(slackMessage, this.slackLogger, this.botConfig.slackChannel);
+
+		this.logger?.sendMessage(logMessage, logCode);
+
 		if (res.result.code === 0) {
 			this.sequence += 1;
 		} else {

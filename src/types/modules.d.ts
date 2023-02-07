@@ -59,5 +59,6 @@ declare namespace NodeJS {
 
 		SLACK_TOKEN: string | undefined;
 		SLACK_CHANNEL: string | undefined;
+		DISCORD_WEBHOOK_URL: string | undefined;
 	}
 }

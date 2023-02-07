@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 import { trySomeArb } from "./arbitrage/arbitrage";
 import * as Juno from "./juno/juno";
-import { getSlackClient, sendSlackMessage } from "./logging/slacklogger";
+import { Logger } from "./core/logging";
 import { getChainOperator } from "./node/chainoperator";
 import { getSkipClient } from "./node/skipclients";
 import * as Terra from "./terra/terra";
@@ -11,6 +11,7 @@ import { MempoolLoop } from "./types/arbitrage/mempoolLoop";
 import { SkipLoop } from "./types/arbitrage/skipLoop";
 import { setBotConfig } from "./types/core/botConfig";
 import { getPathsFromPool, getPathsFromPools3Hop } from "./types/core/path";
+
 // load env files
 dotenv.config();
 const botConfig = setBotConfig(process.env);
@@ -48,11 +49,7 @@ console.log("---".repeat(30));
 async function main() {
 	console.log("Setting up connections and paths");
 	const [account, botClients] = await getChainOperator(botConfig);
-	let slackClient;
-	if (botConfig.slackToken) {
-		slackClient = getSlackClient(botConfig.slackToken);
-	}
-
+	const logger = new Logger(botConfig);
 	const { accountNumber, sequence } = await botClients.SigningCWClient.getSequence(account.address);
 	const chainId = await (
 		await botClients.HttpClient.execute(createJsonRpcRequest("block"))
@@ -94,7 +91,7 @@ async function main() {
 			botConfig,
 			skipClient,
 			skipSigner,
-			slackClient,
+			logger,
 		);
 	} else if (botConfig.useMempool === true) {
 		console.log("Initializing mempool loop");
@@ -109,7 +106,7 @@ async function main() {
 			botConfig,
 		);
 	} else {
-		await sendSlackMessage("loop without mempool or skip not implemented yet", slackClient, botConfig.slackChannel);
+		logger.sendMessage("loop without mempool or skip not implemented yet");
 		return;
 	}
 	// main loop of the bot
@@ -120,17 +117,14 @@ async function main() {
 		await loop.step();
 		loop.reset();
 		if (loop.iterations % 150 === 0) {
-			await sendSlackMessage(
-				">*chain: * " +
-					loop.chainid +
-					" *wallet: * " +
-					account.address +
-					" sign of life, bot is running for " +
-					loop.iterations +
-					" blocks",
-				slackClient,
-				botConfig.slackChannel,
-			);
+			const message = ">*chain: * " +
+			loop.chainid +
+			" *wallet: * " +
+			account.address +
+			" sign of life, bot is running for " +
+			loop.iterations +
+			" blocks";
+			logger.sendMessage(message);
 		}
 	}
 }
