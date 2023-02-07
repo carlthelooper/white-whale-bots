@@ -3,7 +3,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SignerData } from "@cosmjs/stargate";
 import { createJsonRpcRequest } from "@cosmjs/tendermint-rpc/build/jsonrpc";
-import { SkipBundleClient } from "@skip-mev/skipjs";
+import { SignedBundle, SkipBundleClient } from "@skip-mev/skipjs";
 import { WebClient } from "@slack/web-api";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
@@ -130,11 +130,17 @@ export class SkipLoop extends MempoolLoop {
 			"",
 			signerData,
 		);
+		
 		// const txBytes = TxRaw.encode(txRaw).finish();
 		// const normalResult = await this.botClients.TMClient.broadcastTxSync({ tx: txBytes });
 		// console.log(normalResult);
+
 		const txToArbRaw: TxRaw = TxRaw.decode(toArbTrade.txBytes);
-		const signed = await this.skipClient.signBundle([txToArbRaw, txRaw], this.skipSigner, this.account.address);
+        const txString = Buffer.from(TxRaw.encode(txRaw).finish()).toString('base64');
+        const txArbString = Buffer.from(TxRaw.encode(txToArbRaw).finish()).toString('base64');
+		// @ts-ignore
+        const privKey = (await this.skipSigner.getAccountsWithPrivkeys())[0].privkey;
+        const signed = await this.skipClient.signBundle([txArbString, txString], privKey);
 
 		const res = <SkipResult>await this.skipClient.sendBundle(signed, 0, true);
 
