@@ -37,6 +37,9 @@ console.log("USE SKIP: ", botConfig.useSkip);
 if (botConfig.useSkip) {
 	console.log("SKIP URL: ", botConfig.skipRpcUrl);
 }
+if (botConfig.skipBidRate) {
+	console.log("SKIP BID RATE: ", botConfig.skipBidRate);
+}
 console.log("---".repeat(30));
 
 /**
