@@ -2,8 +2,8 @@ import { createJsonRpcRequest } from "@cosmjs/tendermint-rpc/build/jsonrpc";
 import dotenv from "dotenv";
 
 import { trySomeArb } from "./arbitrage/arbitrage";
-import * as Juno from "./juno/juno";
 import { Logger } from "./core/logging";
+import * as Juno from "./juno/juno";
 import { getChainOperator } from "./node/chainoperator";
 import { getSkipClient } from "./node/skipclients";
 import * as Terra from "./terra/terra";
@@ -106,7 +106,7 @@ async function main() {
 			botConfig,
 		);
 	} else {
-		logger.sendMessage("loop without mempool or skip not implemented yet");
+		await logger.sendMessage("loop without mempool or skip not implemented yet");
 		return;
 	}
 	// main loop of the bot
@@ -117,14 +117,15 @@ async function main() {
 		await loop.step();
 		loop.reset();
 		if (loop.iterations % 150 === 0) {
-			const message = ">*chain: * " +
-			loop.chainid +
-			" *wallet: * " +
-			account.address +
-			" sign of life, bot is running for " +
-			loop.iterations +
-			" blocks";
-			logger.sendMessage(message);
+			const message =
+				">*chain: * " +
+				loop.chainid +
+				" *wallet: * " +
+				account.address +
+				" sign of life, bot is running for " +
+				loop.iterations +
+				" blocks";
+			await logger.sendMessage(message);
 		}
 	}
 }

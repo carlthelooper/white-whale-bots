@@ -1,24 +1,30 @@
 import { WebClient } from "@slack/web-api";
 
+/**
+ *
+ */
 export class SlackLogger {
-	public channel?: string;
-    public client: WebClient;
-	
-    constructor(token: string, channel: string) {
-        this.client = new WebClient(token);
-		this.channel = channel;
-    }
+	public conversationId: string;
+	public client: WebClient;
 
-    /**
-     * Sends the `message` to the Slack channel `channel` if the `client` is available.
-	 * @param message The message to send to slack.
-    */
-    public async sendMessage(message: string) {
-        if (this.client && this.channel && message) {
-            this.client.chat.postMessage({
-                text: message,
-                channel: this.channel,
-            });
-        }
-    }
+	/**
+	 *
+	 */
+	constructor(token: string, channel: string) {
+		this.client = new WebClient(token);
+		this.conversationId = channel;
+	}
+
+	/**
+	 * Sends the `message` to slack  if client is avaialble.
+	 * @param message The message to send.
+	 */
+	async sendMessage(message: string) {
+		if (this.client && this.conversationId.length > 0 && message) {
+			await this.client.chat.postMessage({
+				text: message,
+				channel: this.conversationId,
+			});
+		}
+	}
 }

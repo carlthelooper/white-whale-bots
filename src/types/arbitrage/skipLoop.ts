@@ -3,15 +3,15 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { SignerData } from "@cosmjs/stargate";
 import { createJsonRpcRequest } from "@cosmjs/tendermint-rpc/build/jsonrpc";
-import { SignedBundle, SkipBundleClient } from "@skip-mev/skipjs";
+import { SkipBundleClient } from "@skip-mev/skipjs";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { OptimalTrade } from "../../arbitrage/arbitrage";
+import { Logger } from "../../core/logging";
 import { BotClients } from "../../node/chainoperator";
 import { SkipResult } from "../../node/skipclients";
 import { BotConfig } from "../core/botConfig";
-import { Logger } from "../../core/logging";
 import { MempoolTrade, processMempool } from "../core/mempool";
 import { Path } from "../core/path";
 import { applyMempoolTradesOnPools, Pool } from "../core/pool";
@@ -131,17 +131,17 @@ export class SkipLoop extends MempoolLoop {
 			"",
 			signerData,
 		);
-		
+
 		// const txBytes = TxRaw.encode(txRaw).finish();
 		// const normalResult = await this.botClients.TMClient.broadcastTxSync({ tx: txBytes });
 		// console.log(normalResult);
 
 		const txToArbRaw: TxRaw = TxRaw.decode(toArbTrade.txBytes);
-        const txString = Buffer.from(TxRaw.encode(txRaw).finish()).toString('base64');
-        const txArbString = Buffer.from(TxRaw.encode(txToArbRaw).finish()).toString('base64');
-		// @ts-ignore
-        const privKey = (await this.skipSigner.getAccountsWithPrivkeys())[0].privkey;
-        const signed = await this.skipClient.signBundle([txArbString, txString], privKey);
+		const txString = Buffer.from(TxRaw.encode(txRaw).finish()).toString("base64");
+		const txArbString = Buffer.from(TxRaw.encode(txToArbRaw).finish()).toString("base64");
+		// @ts-ignore: unable to access getAccountsWithPrivkeys without ignoring
+		const privKey = (await this.skipSigner.getAccountsWithPrivkeys())[0].privkey;
+		const signed = await this.skipClient.signBundle([txArbString, txString], privKey);
 		const res = <SkipResult>await this.skipClient.sendBundle(signed, 0, true);
 
 		let logMessage =
@@ -159,7 +159,7 @@ export class SkipLoop extends MempoolLoop {
 			":\t" +
 			res.result.error +
 			"\n";
-		let logCode = res.result.code;
+		const logCode = res.result.code;
 
 		console.log(res);
 		if (res.result.result_check_txs != undefined) {
@@ -178,14 +178,13 @@ export class SkipLoop extends MempoolLoop {
 				if (item["code"] != "0") {
 					console.log("deliver tx result of index: ", idx);
 					console.log(item);
-					const logMessageDeliverTx =
-						">*DeliverTx Error* on index: " + idx + "\t" + String(item.log) + "\n";
+					const logMessageDeliverTx = ">*DeliverTx Error* on index: " + idx + "\t" + String(item.log) + "\n";
 					logMessage = logMessage.concat(logMessageDeliverTx);
 				}
 			});
 		}
 
-		this.logger?.sendMessage(logMessage, logCode);
+		await this.logger?.sendMessage(logMessage, logCode);
 
 		if (res.result.code === 0) {
 			this.sequence += 1;
