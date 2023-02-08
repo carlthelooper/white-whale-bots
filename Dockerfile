@@ -1,5 +1,6 @@
-FROM node:16
+FROM node:19
 
+ENV TERM=xterm
 WORKDIR /usr/src/app
 
 COPY package*.json ./

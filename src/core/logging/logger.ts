@@ -11,7 +11,7 @@ export class Logger {
 	public slackLogger?: SlackLogger;
 
 	// Codes that are not sent to external sources (discord, slack)
-	private externalExemptCodes: Array<number> = [4];
+	private externalExemptCodes: Array<number> = [4,6,7,8];
 
 	/**
 	 *
@@ -35,6 +35,8 @@ export class Logger {
 	 */
 	public async sendMessage(message: string, code = -1) {
 		if (message) {
+			message = " **" + code + "** " + message;
+
 			// Don't send common errors to discord/slack
 			if (!this.externalExemptCodes.includes(code)) {
 				if (this.discordLogger) {
